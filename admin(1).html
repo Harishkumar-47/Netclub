@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Networking Club — Admin Panel</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{
+    --bg:#0A0E14; --surface:#121826; --surface-2:#182036; --line:#253048;
+    --teal:#35D0BA; --amber:#FFB454; --text:#EDF1F7; --muted:#7C8798; --red:#F87171;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{ background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; min-height:100vh; }
+  h1,h2,.display{ font-family:'Space Grotesk',sans-serif; }
+  .mono{ font-family:'JetBrains Mono',monospace; }
+
+  /* ---- gate ---- */
+  #gate{ min-height:100vh; display:flex; align-items:center; justify-content:center; padding:20px; }
+  .gate-card{
+    width:100%; max-width:380px; background:var(--surface); border:1px solid var(--line);
+    border-radius:14px; padding:36px; text-align:center;
+  }
+  .gate-card h1{ font-size:20px; margin-bottom:6px; }
+  .gate-card p{ color:var(--muted); font-size:13px; margin-bottom:22px; line-height:1.5;}
+  input{
+    width:100%; background:var(--surface-2); border:1px solid var(--line); color:var(--text);
+    padding:12px 14px; border-radius:8px; font-size:14.5px; font-family:'Inter',sans-serif;
+  }
+  input:focus{ outline:none; border-color:var(--teal); }
+  .btn{
+    appearance:none; border:none; cursor:pointer; font-family:'Space Grotesk',sans-serif; font-weight:600;
+    font-size:14.5px; padding:12px 18px; border-radius:9px; transition:opacity .12s, transform .1s;
+  }
+  .btn:active{ transform:scale(0.98); }
+  .btn-primary{ background:var(--teal); color:#08201C; width:100%; margin-top:14px; }
+  .btn-primary:hover{ background:#4EE0CA; }
+  .btn-ghost{ background:transparent; color:var(--muted); border:1px solid var(--line); }
+  .btn-ghost:hover{ color:var(--text); border-color:var(--muted); }
+  .btn-amber{ background:var(--amber); color:#2A1B00; }
+  .btn-amber:hover{ background:#FFC578; }
+  .gate-err{ color:var(--red); font-size:12.5px; margin-top:10px; display:none; }
+
+  /* ---- dashboard ---- */
+  #dash{ display:none; min-height:100vh; }
+  .topbar{
+    display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:14px;
+    padding:22px 32px; border-bottom:1px solid var(--line);
+  }
+  .brand h1{ font-size:19px; }
+  .brand .sub{ color:var(--muted); font-size:12.5px; margin-top:2px; }
+  .top-actions{ display:flex; gap:10px; flex-wrap:wrap; }
+
+  .stats-row{ display:flex; gap:16px; padding:24px 32px 0; flex-wrap:wrap; }
+  .stat-card{
+    flex:1 1 160px; background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:18px 20px;
+  }
+  .stat-card .num{ font-size:26px; font-weight:700; font-family:'Space Grotesk',sans-serif; }
+  .stat-card .label{ color:var(--muted); font-size:12px; text-transform:uppercase; letter-spacing:0.05em; margin-top:4px; }
+
+  .controls{
+    display:flex; gap:12px; padding:24px 32px 0; flex-wrap:wrap; align-items:center;
+  }
+  .controls input[type=text]{ max-width:260px; }
+  .controls select{
+    background:var(--surface-2); border:1px solid var(--line); color:var(--text);
+    padding:11px 14px; border-radius:8px; font-size:13.5px;
+  }
+  .controls .spacer{ flex:1; }
+  .controls .count{ color:var(--muted); font-size:13px; }
+
+  .table-wrap{ padding:20px 32px 60px; overflow-x:auto; }
+  table{ width:100%; border-collapse:collapse; font-size:13.5px; min-width:760px; }
+  th{
+    text-align:left; padding:12px 14px; color:var(--muted); font-family:'JetBrains Mono',monospace;
+    font-size:11px; text-transform:uppercase; letter-spacing:0.05em; border-bottom:1px solid var(--line);
+    cursor:pointer; white-space:nowrap; user-select:none;
+  }
+  th:hover{ color:var(--text); }
+  th .arrow{ opacity:0.5; margin-left:4px; }
+  td{ padding:12px 14px; border-bottom:1px solid var(--line); white-space:nowrap; }
+  tr:hover td{ background:rgba(255,255,255,0.02); }
+  .rank-badge{
+    display:inline-flex; align-items:center; justify-content:center; width:24px; height:24px;
+    border-radius:50%; background:var(--surface-2); font-size:11px; font-family:'JetBrains Mono',monospace;
+  }
+  .rank-badge.top{ background:var(--amber); color:#2A1B00; font-weight:700; }
+  .score-pill{
+    display:inline-block; padding:3px 10px; border-radius:999px; font-family:'JetBrains Mono',monospace; font-size:12.5px;
+    background:rgba(53,208,186,0.12); color:var(--teal); border:1px solid rgba(53,208,186,0.3);
+  }
+  .empty-note, .loading-note{ color:var(--muted); font-size:14px; padding:40px 0; text-align:center; }
+</style>
+</head>
+<body>
+
+<!-- ============ GATE ============ -->
+<div id="gate">
+  <div class="gate-card">
+    <h1>Admin panel</h1>
+    <p>Networking Club — Selection Test results. Enter the admin code to continue.</p>
+    <input type="password" id="in-code" placeholder="Admin code">
+    <button class="btn btn-primary" id="btnEnter">Enter</button>
+    <div class="gate-err" id="gateErr">Incorrect code. Try again.</div>
+  </div>
+</div>
+
+<!-- ============ DASHBOARD ============ -->
+<div id="dash">
+  <div class="topbar">
+    <div class="brand">
+      <h1>Networking Club — Results</h1>
+      <div class="sub">All candidate submissions, live from Supabase</div>
+    </div>
+    <div class="top-actions">
+      <button class="btn btn-ghost" id="btnRefresh">Refresh</button>
+      <button class="btn btn-amber" id="btnExport">Export CSV</button>
+    </div>
+  </div>
+
+  <div class="stats-row">
+    <div class="stat-card"><div class="num" id="statTotal">—</div><div class="label">Total candidates</div></div>
+    <div class="stat-card"><div class="num" id="statAvg">—</div><div class="label">Average score</div></div>
+    <div class="stat-card"><div class="num" id="statTop">—</div><div class="label">Top score</div></div>
+    <div class="stat-card"><div class="num" id="statDepts">—</div><div class="label">Departments represented</div></div>
+  </div>
+
+  <div class="controls">
+    <input type="text" id="searchBox" placeholder="Search name or register no...">
+    <select id="deptFilter"><option value="">All departments</option></select>
+    <select id="yearFilter"><option value="">All years</option></select>
+    <div class="spacer"></div>
+    <div class="count" id="rowCount"></div>
+  </div>
+
+  <div class="table-wrap">
+    <table id="resultsTable">
+      <thead>
+        <tr>
+          <th data-key="rank">#</th>
+          <th data-key="name">Name</th>
+          <th data-key="reg_no">Register No <span class="arrow"></span></th>
+          <th data-key="department">Department <span class="arrow"></span></th>
+          <th data-key="year">Year <span class="arrow"></span></th>
+          <th data-key="score">Score <span class="arrow">↓</span></th>
+          <th data-key="time_taken_sec">Time taken <span class="arrow"></span></th>
+          <th data-key="submitted_at">Submitted <span class="arrow"></span></th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+    <div class="empty-note" id="emptyNote" style="display:none;">No submissions yet.</div>
+  </div>
+</div>
+
+<script>
+/* ================================================================
+   CONFIG — same project as the test website
+================================================================= */
+const ADMIN_CODE = "NETCLUB"; // change this to your own code
+const SUPABASE_URL = "https://hskjskznmjuskacujacj.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_xSMKW_sUX-fMvBf4Lg2ljg_AZAfCeOD";
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+let allRows = [];
+let sortKey = "score";
+let sortDir = "desc";
+
+/* ---- gate ---- */
+document.getElementById('btnEnter').addEventListener('click', tryEnter);
+document.getElementById('in-code').addEventListener('keydown', e => { if(e.key === 'Enter') tryEnter(); });
+
+function tryEnter(){
+  const code = document.getElementById('in-code').value;
+  if(code !== ADMIN_CODE){
+    document.getElementById('gateErr').style.display = 'block';
+    return;
+  }
+  document.getElementById('gate').style.display = 'none';
+  document.getElementById('dash').style.display = 'block';
+  loadData();
+}
+
+/* ---- data ---- */
+async function loadData(){
+  document.getElementById('tbody').innerHTML = '';
+  document.getElementById('emptyNote').style.display = 'none';
+  document.getElementById('rowCount').textContent = 'Loading…';
+
+  const { data, error } = await supabaseClient
+    .from('submissions')
+    .select('*')
+    .order('score', { ascending: false });
+
+  if(error){
+    document.getElementById('rowCount').textContent = '';
+    document.getElementById('emptyNote').textContent = 'Could not load data: ' + error.message;
+    document.getElementById('emptyNote').style.display = 'block';
+    return;
+  }
+
+  allRows = data || [];
+  populateFilters();
+  renderStats();
+  render();
+}
+
+function populateFilters(){
+  const depts = [...new Set(allRows.map(r => r.department).filter(Boolean))].sort();
+  const years = [...new Set(allRows.map(r => r.year).filter(Boolean))].sort();
+  const deptSel = document.getElementById('deptFilter');
+  const yearSel = document.getElementById('yearFilter');
+  deptSel.innerHTML = '<option value="">All departments</option>' + depts.map(d => `<option>${d}</option>`).join('');
+  yearSel.innerHTML = '<option value="">All years</option>' + years.map(y => `<option>${y}</option>`).join('');
+}
+
+function renderStats(){
+  const total = allRows.length;
+  const avg = total ? (allRows.reduce((s,r) => s + r.score, 0) / total).toFixed(1) : '—';
+  const top = total ? Math.max(...allRows.map(r => r.score)) : '—';
+  const depts = new Set(allRows.map(r => r.department).filter(Boolean)).size;
+  document.getElementById('statTotal').textContent = total;
+  document.getElementById('statAvg').textContent = avg;
+  document.getElementById('statTop').textContent = top;
+  document.getElementById('statDepts').textContent = depts;
+}
+
+function getFiltered(){
+  const q = document.getElementById('searchBox').value.trim().toLowerCase();
+  const dept = document.getElementById('deptFilter').value;
+  const year = document.getElementById('yearFilter').value;
+  let rows = allRows.filter(r => {
+    if(dept && r.department !== dept) return false;
+    if(year && r.year !== year) return false;
+    if(q && !(`${r.name} ${r.reg_no}`.toLowerCase().includes(q))) return false;
+    return true;
+  });
+  rows.sort((a,b) => {
+    let av = a[sortKey], bv = b[sortKey];
+    if(sortKey === 'submitted_at'){ av = new Date(av).getTime(); bv = new Date(bv).getTime(); }
+    if(typeof av === 'string'){ av = av.toLowerCase(); bv = (bv||'').toLowerCase(); }
+    if(av < bv) return sortDir === 'asc' ? -1 : 1;
+    if(av > bv) return sortDir === 'asc' ? 1 : -1;
+    return 0;
+  });
+  return rows;
+}
+
+function render(){
+  const rows = getFiltered();
+  const tbody = document.getElementById('tbody');
+  document.getElementById('rowCount').textContent = `${rows.length} of ${allRows.length} candidates`;
+
+  if(rows.length === 0){
+    tbody.innerHTML = '';
+    document.getElementById('emptyNote').textContent = allRows.length ? 'No results match your filters.' : 'No submissions yet.';
+    document.getElementById('emptyNote').style.display = 'block';
+    return;
+  }
+  document.getElementById('emptyNote').style.display = 'none';
+
+  const sortedByScore = [...allRows].sort((a,b) => b.score - a.score);
+  tbody.innerHTML = rows.map(r => {
+    const rank = sortedByScore.indexOf(r) + 1;
+    const t = r.time_taken_sec || 0;
+    return `
+      <tr>
+        <td><span class="rank-badge ${rank<=3?'top':''}">${rank}</span></td>
+        <td>${escapeHtml(r.name)}</td>
+        <td class="mono">${escapeHtml(r.reg_no)}</td>
+        <td>${escapeHtml(r.department)}</td>
+        <td>${escapeHtml(r.year)}</td>
+        <td><span class="score-pill">${r.score}/${r.total}</span></td>
+        <td class="mono">${Math.floor(t/60)}m ${t%60}s</td>
+        <td style="color:var(--muted); font-size:12.5px;">${new Date(r.submitted_at).toLocaleString()}</td>
+      </tr>`;
+  }).join('');
+}
+
+function escapeHtml(s){
+  return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+/* ---- sorting ---- */
+document.querySelectorAll('#resultsTable th').forEach(th => {
+  th.addEventListener('click', () => {
+    const key = th.dataset.key;
+    if(key === 'rank') return;
+    if(sortKey === key){ sortDir = sortDir === 'asc' ? 'desc' : 'asc'; }
+    else { sortKey = key; sortDir = 'desc'; }
+    document.querySelectorAll('#resultsTable th .arrow').forEach(a => a.textContent = '');
+    th.querySelector('.arrow').textContent = sortDir === 'asc' ? '↑' : '↓';
+    render();
+  });
+});
+
+/* ---- filters ---- */
+document.getElementById('searchBox').addEventListener('input', render);
+document.getElementById('deptFilter').addEventListener('change', render);
+document.getElementById('yearFilter').addEventListener('change', render);
+document.getElementById('btnRefresh').addEventListener('click', loadData);
+
+/* ---- export ---- */
+document.getElementById('btnExport').addEventListener('click', () => {
+  const rows = getFiltered();
+  if(rows.length === 0){ alert('No rows to export.'); return; }
+  const header = ['Name','Register No','Department','Year','Score','Total','Time Taken (s)','Submitted At'];
+  const body = rows.map(r => [r.name, r.reg_no, r.department, r.year, r.score, r.total, r.time_taken_sec, r.submitted_at]);
+  const csv = [header, ...body].map(row => row.map(v => `"${String(v ?? '').replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'networking-club-results.csv'; a.click();
+  URL.revokeObjectURL(url);
+});
+</script>
+</body>
+</html>

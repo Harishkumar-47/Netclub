@@ -1,0 +1,753 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Networking Club — Selection Test</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{
+    --bg: #0A0E14;
+    --surface: #121826;
+    --surface-2: #182036;
+    --line: #253048;
+    --teal: #35D0BA;
+    --amber: #FFB454;
+    --text: #EDF1F7;
+    --muted: #7C8798;
+    --green: #4ADE80;
+    --red: #F87171;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{height:100%;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:'Inter', sans-serif;
+    min-height:100vh;
+    overflow-x:hidden;
+    position:relative;
+  }
+  ::selection{ background:var(--teal); color:#0A0E14; }
+  h1,h2,h3, .display{ font-family:'Space Grotesk', sans-serif; }
+  .mono{ font-family:'JetBrains Mono', monospace; }
+
+  #netcanvas{
+    position:fixed; inset:0; width:100%; height:100%; z-index:0; opacity:0.55;
+  }
+
+  .app{ position:relative; z-index:1; min-height:100vh; display:flex; flex-direction:column; }
+
+  /* ---------- Top bar ---------- */
+  .topbar{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:20px 28px; border-bottom:1px solid var(--line);
+    backdrop-filter: blur(6px);
+  }
+  .brand{ display:flex; align-items:center; gap:10px; }
+  .brand-mark{
+    width:30px; height:30px; position:relative; flex-shrink:0;
+  }
+  .brand-mark svg{ width:100%; height:100%; }
+  .brand-name{ font-weight:600; letter-spacing:0.02em; font-size:15px; }
+  .brand-sub{ color:var(--muted); font-size:11px; letter-spacing:0.08em; text-transform:uppercase; margin-top:1px; }
+
+  .timer-pill{
+    display:none; align-items:center; gap:8px;
+    background:var(--surface); border:1px solid var(--line);
+    padding:8px 14px; border-radius:999px; font-size:13px;
+  }
+  .timer-pill.show{ display:flex; }
+  .timer-dot{ width:7px; height:7px; border-radius:50%; background:var(--green); }
+  .timer-dot.low{ background:var(--red); animation:pulse 1s infinite; }
+  @keyframes pulse{ 0%,100%{opacity:1;} 50%{opacity:0.3;} }
+
+  main{ flex:1; display:flex; align-items:stretch; }
+
+  /* ---------- Screens ---------- */
+  .screen{ display:none; width:100%; }
+  .screen.active{ display:flex; }
+
+  /* ---- Registration screen ---- */
+  #screen-register{ flex-wrap:wrap; }
+  .reg-hero{
+    flex:1 1 420px; padding:64px 48px; display:flex; flex-direction:column; justify-content:center;
+    min-width:320px;
+  }
+  .eyebrow{
+    display:inline-flex; align-items:center; gap:8px;
+    color:var(--teal); font-size:12px; letter-spacing:0.12em; text-transform:uppercase;
+    margin-bottom:22px; font-family:'JetBrains Mono', monospace;
+  }
+  .eyebrow::before{ content:''; width:16px; height:1px; background:var(--teal); }
+  .reg-hero h1{
+    font-size:clamp(34px, 4.4vw, 54px); line-height:1.05; font-weight:600; letter-spacing:-0.01em;
+    max-width:640px;
+  }
+  .reg-hero h1 span{ color:var(--teal); }
+  .reg-hero p.lead{
+    color:var(--muted); font-size:16px; line-height:1.6; margin-top:20px; max-width:480px;
+  }
+  .signal-stats{ display:flex; gap:36px; margin-top:44px; flex-wrap:wrap; }
+  .signal-stats .stat-num{ font-family:'Space Grotesk',sans-serif; font-size:28px; font-weight:600; color:var(--text); }
+  .signal-stats .stat-label{ color:var(--muted); font-size:12px; letter-spacing:0.05em; text-transform:uppercase; margin-top:2px;}
+
+  .reg-form-wrap{
+    flex:1 1 420px; background:var(--surface); border-left:1px solid var(--line);
+    padding:64px 48px; display:flex; flex-direction:column; justify-content:center; min-width:320px;
+  }
+  .form-card{ max-width:420px; width:100%; margin:0 auto; }
+  .form-card h2{ font-size:22px; font-weight:600; margin-bottom:6px; }
+  .form-card .sub{ color:var(--muted); font-size:13.5px; margin-bottom:28px; }
+
+  .field{ margin-bottom:18px; }
+  .field label{
+    display:block; font-size:12px; color:var(--muted); margin-bottom:7px;
+    letter-spacing:0.03em; text-transform:uppercase; font-family:'JetBrains Mono', monospace;
+  }
+  .field input, .field select{
+    width:100%; background:var(--surface-2); border:1px solid var(--line); color:var(--text);
+    padding:12px 14px; border-radius:8px; font-size:14.5px; font-family:'Inter', sans-serif;
+    transition:border-color .15s, box-shadow .15s;
+  }
+  .field input::placeholder{ color:#4C5771; }
+  .field input:focus, .field select:focus{
+    outline:none; border-color:var(--teal); box-shadow:0 0 0 3px rgba(53,208,186,0.15);
+  }
+  .field-row{ display:flex; gap:14px; }
+  .field-row .field{ flex:1; }
+  .err{ color:var(--red); font-size:12px; margin-top:6px; display:none; }
+  .field.invalid input, .field.invalid select{ border-color:var(--red); }
+  .field.invalid .err{ display:block; }
+
+  .btn{
+    appearance:none; border:none; cursor:pointer; font-family:'Space Grotesk', sans-serif;
+    font-weight:600; font-size:15px; padding:14px 22px; border-radius:9px;
+    display:inline-flex; align-items:center; justify-content:center; gap:8px;
+    transition:transform .12s ease, opacity .12s ease, background .15s;
+  }
+  .btn:active{ transform:scale(0.98); }
+  .btn-primary{ background:var(--teal); color:#08201C; width:100%; margin-top:8px; }
+  .btn-primary:hover{ background:#4EE0CA; }
+  .btn-ghost{ background:transparent; color:var(--muted); border:1px solid var(--line); }
+  .btn-ghost:hover{ color:var(--text); border-color:var(--muted); }
+  .btn-amber{ background:var(--amber); color:#2A1B00; }
+  .btn-amber:hover{ background:#FFC578; }
+  .btn:disabled{ opacity:0.5; cursor:not-allowed; }
+
+  /* ---- Quiz screen ---- */
+  #screen-quiz{ flex-direction:column; align-items:center; padding:40px 20px 60px; }
+  .quiz-wrap{ width:100%; max-width:680px; }
+
+  .progress-track{
+    width:100%; height:6px; background:var(--surface-2); border-radius:999px; overflow:hidden; margin-bottom:10px;
+  }
+  .progress-fill{
+    height:100%; background:linear-gradient(90deg, var(--teal), var(--amber)); width:0%;
+    transition:width .35s ease; border-radius:999px;
+  }
+  .progress-label{
+    display:flex; justify-content:space-between; font-size:12px; color:var(--muted);
+    font-family:'JetBrains Mono', monospace; margin-bottom:30px;
+  }
+
+  .q-card{
+    background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:36px;
+  }
+  .q-tag{
+    color:var(--teal); font-family:'JetBrains Mono', monospace; font-size:12px; letter-spacing:0.08em;
+    text-transform:uppercase; margin-bottom:14px; display:block;
+  }
+  .q-text{ font-size:19px; font-weight:500; line-height:1.5; margin-bottom:26px; }
+  .options{ display:flex; flex-direction:column; gap:10px; }
+  .option{
+    display:flex; align-items:center; gap:12px; padding:14px 16px; border-radius:9px;
+    border:1px solid var(--line); background:var(--surface-2); cursor:pointer; font-size:14.5px;
+    transition:border-color .12s, background .12s;
+  }
+  .option:hover{ border-color:#3A4864; }
+  .option.selected{ border-color:var(--teal); background:rgba(53,208,186,0.08); }
+  .option .opt-letter{
+    width:24px; height:24px; border-radius:50%; border:1px solid var(--line); flex-shrink:0;
+    display:flex; align-items:center; justify-content:center; font-size:11px;
+    font-family:'JetBrains Mono', monospace; color:var(--muted);
+  }
+  .option.selected .opt-letter{ background:var(--teal); color:#08201C; border-color:var(--teal); }
+
+  .q-nav{ display:flex; justify-content:space-between; margin-top:24px; gap:12px; }
+  .q-nav .btn{ flex:1; }
+
+  /* ---- Result screen ---- */
+  #screen-result{ align-items:center; justify-content:center; padding:40px 20px; }
+  .result-card{
+    max-width:480px; width:100%; text-align:center; background:var(--surface);
+    border:1px solid var(--line); border-radius:16px; padding:48px 40px;
+  }
+  .result-ring{
+    width:120px; height:120px; margin:0 auto 22px; position:relative;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .result-score{ font-size:34px; font-weight:700; font-family:'Space Grotesk', sans-serif; }
+  .result-title{ font-size:20px; font-weight:600; margin-bottom:8px; }
+  .result-sub{ color:var(--muted); font-size:14px; line-height:1.6; margin-bottom:28px; }
+  .result-meta{
+    text-align:left; background:var(--surface-2); border-radius:10px; padding:16px 18px; margin-bottom:26px;
+    font-size:13px;
+  }
+  .result-meta div{ display:flex; justify-content:space-between; padding:5px 0; color:var(--muted); }
+  .result-meta div span:last-child{ color:var(--text); font-family:'JetBrains Mono', monospace; }
+
+  footer{ text-align:center; padding:22px; color:var(--muted); font-size:12px; }
+
+  @media (max-width: 760px){
+    .reg-hero, .reg-form-wrap{ padding:40px 24px; }
+    .q-card{ padding:24px; }
+    .result-card{ padding:36px 24px; }
+  }
+</style>
+</head>
+<body>
+
+<canvas id="netcanvas"></canvas>
+
+<div class="app">
+
+  <div class="topbar">
+    <div class="brand">
+      <div class="brand-mark">
+        <svg viewBox="0 0 30 30" fill="none">
+          <circle cx="6" cy="6" r="3" stroke="#35D0BA" stroke-width="1.6"/>
+          <circle cx="24" cy="6" r="3" stroke="#35D0BA" stroke-width="1.6"/>
+          <circle cx="15" cy="24" r="3" stroke="#FFB454" stroke-width="1.6"/>
+          <line x1="8.5" y1="7.5" x2="21" y2="7" stroke="#253048" stroke-width="1.3"/>
+          <line x1="7" y1="8.5" x2="13.5" y2="21.5" stroke="#253048" stroke-width="1.3"/>
+          <line x1="23" y1="8.5" x2="16.5" y2="21.5" stroke="#253048" stroke-width="1.3"/>
+        </svg>
+      </div>
+      <div>
+        <div class="brand-name">Networking Club</div>
+        <div class="brand-sub">Selection Test</div>
+      </div>
+    </div>
+    <div class="timer-pill" id="timerPill">
+      <div class="timer-dot" id="timerDot"></div>
+      <span class="mono" id="timerText">15:00</span>
+    </div>
+  </div>
+
+  <main>
+
+    <!-- ================= REGISTER SCREEN ================= -->
+    <section class="screen active" id="screen-register">
+      <div class="reg-hero">
+        <span class="eyebrow">Open to all departments</span>
+        <h1>Every good network<br>starts with the right <span>nodes</span>.</h1>
+        <p class="lead">Register below to begin the shortlisting test. Answer every question — the highest scorers get an interview slot with the club.</p>
+        <div class="signal-stats">
+          <div>
+            <div class="stat-num" id="qCountStat">—</div>
+            <div class="stat-label">Questions</div>
+          </div>
+          <div>
+            <div class="stat-num" id="timeStat">15</div>
+            <div class="stat-label">Minutes</div>
+          </div>
+          <div>
+            <div class="stat-num">1</div>
+            <div class="stat-label">Attempt</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="reg-form-wrap">
+        <div class="form-card">
+          <h2>Candidate details</h2>
+          <div class="sub">Fill this in exactly as per your college records.</div>
+
+          <div class="field" id="f-name">
+            <label>Full name</label>
+            <input type="text" id="in-name" placeholder="e.g. Arun Kumar S">
+            <div class="err">Enter your full name</div>
+          </div>
+
+          <div class="field" id="f-reg">
+            <label>Register number</label>
+            <input type="text" id="in-reg" placeholder="e.g. 21CS045" class="mono">
+            <div class="err">Enter your register number</div>
+          </div>
+
+          <div class="field-row">
+            <div class="field" id="f-dept">
+              <label>Department</label>
+              <select id="in-dept">
+                <option value="">Select department</option>
+                <option>CSE</option>
+                <option>IT</option>
+                <option>ECE</option>
+                <option>EEE</option>
+                <option>Mechanical</option>
+                <option>Civil</option>
+                <option>AI & DS</option>
+                <option>Other</option>
+              </select>
+              <div class="err">Select a department</div>
+            </div>
+            <div class="field" id="f-year">
+              <label>Year of study</label>
+              <select id="in-year">
+                <option value="">Select year</option>
+                <option>1st Year</option>
+                <option>2nd Year</option>
+                <option>3rd Year</option>
+                <option>4th Year</option>
+              </select>
+              <div class="err">Select your year</div>
+            </div>
+          </div>
+
+          <button class="btn btn-primary" id="btnStart">Start test →</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= QUIZ SCREEN ================= -->
+    <section class="screen" id="screen-quiz">
+      <div class="quiz-wrap">
+        <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+        <div class="progress-label">
+          <span id="progressText">Question 1 of 1</span>
+          <span id="progressPct" class="mono">0%</span>
+        </div>
+
+        <div class="q-card">
+          <span class="q-tag" id="qTag">Networking basics</span>
+          <div class="q-text" id="qText">Loading question…</div>
+          <div class="options" id="qOptions"></div>
+        </div>
+
+        <div class="q-nav">
+          <button class="btn btn-ghost" id="btnPrev">← Previous</button>
+          <button class="btn btn-primary" id="btnNext" style="flex:1;">Next →</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= RESULT SCREEN ================= -->
+    <section class="screen" id="screen-result">
+      <div class="result-card">
+        <div class="result-ring">
+          <div class="result-score mono" id="resultScoreBig">0/0</div>
+        </div>
+        <div class="result-title">Response submitted</div>
+        <div class="result-sub">Thanks for taking the Networking Club selection test. Shortlisted candidates will be contacted by the organizers.</div>
+        <div class="result-meta" id="resultMeta"></div>
+        <button class="btn btn-ghost" id="btnRestart" style="width:100%;">Done</button>
+      </div>
+    </section>
+
+  </main>
+
+  <footer>Built for the Networking Club selection process · results are stored so organizers can shortlist top scorers.</footer>
+</div>
+
+<script>
+/* ================================================================
+   QUESTIONS — replace this array with the real questions.
+   Each question: { tag, text, options: [4 strings], correct: index(0-3) }
+   This is placeholder content so the flow can be tested end-to-end.
+================================================================= */
+const QUESTIONS = [
+  {
+    tag: "Fundamentals",
+    text: "Which layer of the OSI model is responsible for routing packets between different networks?",
+    options: ["Data Link Layer", "Network Layer", "Transport Layer", "Session Layer"],
+    correct: 1
+  },
+  {
+    tag: "Addressing",
+    text: "What is the default subnet mask for a Class C IP address?",
+    options: ["255.0.0.0", "255.255.0.0", "255.255.255.0", "255.255.255.255"],
+    correct: 2
+  },
+  {
+    tag: "Protocols",
+    text: "Which protocol is used to reliably deliver data with guaranteed ordering and error-checking?",
+    options: ["UDP", "TCP", "ICMP", "ARP"],
+    correct: 1
+  },
+  {
+    tag: "Hardware",
+    text: "Which device operates primarily at Layer 2 and forwards frames based on MAC addresses?",
+    options: ["Router", "Hub", "Switch", "Modem"],
+    correct: 2
+  },
+  {
+    tag: "Fundamentals",
+    text: "What does DNS primarily do?",
+    options: [
+      "Assigns IP addresses automatically to devices",
+      "Translates domain names into IP addresses",
+      "Encrypts traffic between client and server",
+      "Manages email delivery between servers"
+    ],
+    correct: 1
+  },
+  {
+    tag: "Protocols",
+    text: "Which port number is commonly used by HTTPS?",
+    options: ["21", "80", "443", "25"],
+    correct: 2
+  },
+  {
+    tag: "Fundamentals",
+    text: "How many layers are there in the OSI model?",
+    options: ["4", "5", "6", "7"],
+    correct: 3
+  },
+  {
+    tag: "Addressing",
+    text: "Which of these is a valid IPv4 address?",
+    options: ["192.168.1.256", "192.168.1.1", "192.168.1.1.1", "192.168.1"],
+    correct: 1
+  },
+  {
+    tag: "Hardware",
+    text: "Which device connects two different networks and forwards data between them based on IP addresses?",
+    options: ["Switch", "Hub", "Router", "Repeater"],
+    correct: 2
+  },
+  {
+    tag: "Protocols",
+    text: "Which protocol automatically assigns IP addresses to devices on a network?",
+    options: ["DNS", "DHCP", "FTP", "SNMP"],
+    correct: 1
+  },
+  {
+    tag: "Fundamentals",
+    text: "What does 'LAN' stand for?",
+    options: ["Local Area Network", "Long Area Network", "Linked Access Node", "Local Access Node"],
+    correct: 0
+  },
+  {
+    tag: "Fundamentals",
+    text: "What does 'WAN' stand for?",
+    options: ["Wide Area Network", "Wireless Access Network", "Web Access Node", "Wired Area Network"],
+    correct: 0
+  },
+  {
+    tag: "Protocols",
+    text: "Which protocol is used to send email from a client to a mail server?",
+    options: ["POP3", "IMAP", "SMTP", "HTTP"],
+    correct: 2
+  },
+  {
+    tag: "Addressing",
+    text: "What is the maximum value of a single octet in an IPv4 address?",
+    options: ["128", "255", "256", "999"],
+    correct: 1
+  },
+  {
+    tag: "Hardware",
+    text: "Which device simply amplifies or regenerates a signal to extend the range of a network?",
+    options: ["Repeater", "Switch", "Router", "Firewall"],
+    correct: 0
+  },
+  {
+    tag: "Security",
+    text: "What is the primary purpose of a firewall in a network?",
+    options: [
+      "To speed up internet connections",
+      "To monitor and control incoming/outgoing network traffic based on rules",
+      "To assign IP addresses to devices",
+      "To translate domain names to IP addresses"
+    ],
+    correct: 1
+  },
+  {
+    tag: "Fundamentals",
+    text: "In networking, what does 'bandwidth' refer to?",
+    options: [
+      "The physical length of a network cable",
+      "The maximum rate of data transfer across a network path",
+      "The number of devices connected to a router",
+      "The security level of a network"
+    ],
+    correct: 1
+  },
+  {
+    tag: "Protocols",
+    text: "Which protocol is connectionless and does not guarantee delivery of data?",
+    options: ["TCP", "UDP", "FTP", "HTTP"],
+    correct: 1
+  },
+  {
+    tag: "Addressing",
+    text: "What is the purpose of a MAC address?",
+    options: [
+      "To uniquely identify a device's network interface at the hardware level",
+      "To identify a website's location on the internet",
+      "To encrypt data sent over a network",
+      "To assign a domain name to a server"
+    ],
+    correct: 0
+  },
+  {
+    tag: "Fundamentals",
+    text: "Which topology connects all devices to a single central hub or switch?",
+    options: ["Bus topology", "Ring topology", "Star topology", "Mesh topology"],
+    correct: 2
+  }
+];
+
+const TIME_LIMIT_MINUTES = 15;
+
+/* ---------------------------------------------------------------
+   SUPABASE CONFIG — paste your own values here.
+   Project Settings -> API -> Project URL / anon public key.
+   Never paste the service_role key here, only the anon key.
+---------------------------------------------------------------- */
+const SUPABASE_URL = "https://hskjskznmjuskacujacj.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_xSMKW_sUX-fMvBf4Lg2ljg_AZAfCeOD";
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+/* ================================================================
+   STATE
+================================================================= */
+let candidate = null;
+let current = 0;
+let answers = new Array(QUESTIONS.length).fill(null);
+let timeLeft = TIME_LIMIT_MINUTES * 60;
+let timerInterval = null;
+let startedAt = null;
+
+document.getElementById('qCountStat').textContent = QUESTIONS.length;
+document.getElementById('timeStat').textContent = TIME_LIMIT_MINUTES;
+
+/* ================================================================
+   NAVIGATION HELPERS
+================================================================= */
+function showScreen(id){
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+/* ================================================================
+   REGISTRATION
+================================================================= */
+const fields = {
+  name: { el: document.getElementById('f-name'), input: document.getElementById('in-name') },
+  reg:  { el: document.getElementById('f-reg'),  input: document.getElementById('in-reg') },
+  dept: { el: document.getElementById('f-dept'), input: document.getElementById('in-dept') },
+  year: { el: document.getElementById('f-year'), input: document.getElementById('in-year') },
+};
+
+function validateForm(){
+  let ok = true;
+  Object.values(fields).forEach(f => {
+    if(!f.input.value.trim()){
+      f.el.classList.add('invalid'); ok = false;
+    } else {
+      f.el.classList.remove('invalid');
+    }
+  });
+  return ok;
+}
+
+document.getElementById('btnStart').addEventListener('click', () => {
+  if(!validateForm()) return;
+  candidate = {
+    name: fields.name.input.value.trim(),
+    reg: fields.reg.input.value.trim(),
+    dept: fields.dept.input.value,
+    year: fields.year.input.value,
+  };
+  startQuiz();
+});
+
+/* ================================================================
+   QUIZ
+================================================================= */
+function startQuiz(){
+  current = 0;
+  answers = new Array(QUESTIONS.length).fill(null);
+  timeLeft = TIME_LIMIT_MINUTES * 60;
+  startedAt = Date.now();
+  showScreen('screen-quiz');
+  document.getElementById('timerPill').classList.add('show');
+  renderQuestion();
+  startTimer();
+}
+
+function startTimer(){
+  clearInterval(timerInterval);
+  updateTimerDisplay();
+  timerInterval = setInterval(() => {
+    timeLeft--;
+    updateTimerDisplay();
+    if(timeLeft <= 0){
+      clearInterval(timerInterval);
+      submitTest(true);
+    }
+  }, 1000);
+}
+
+function updateTimerDisplay(){
+  const m = Math.floor(timeLeft/60).toString().padStart(2,'0');
+  const s = (timeLeft%60).toString().padStart(2,'0');
+  document.getElementById('timerText').textContent = `${m}:${s}`;
+  document.getElementById('timerDot').classList.toggle('low', timeLeft <= 60);
+}
+
+function renderQuestion(){
+  const q = QUESTIONS[current];
+  document.getElementById('qTag').textContent = q.tag || 'Question';
+  document.getElementById('qText').textContent = q.text;
+
+  const optWrap = document.getElementById('qOptions');
+  optWrap.innerHTML = '';
+  const letters = ['A','B','C','D','E','F'];
+  q.options.forEach((opt, i) => {
+    const div = document.createElement('div');
+    div.className = 'option' + (answers[current] === i ? ' selected' : '');
+    div.innerHTML = `<span class="opt-letter">${letters[i]}</span><span>${opt}</span>`;
+    div.addEventListener('click', () => {
+      answers[current] = i;
+      renderQuestion();
+    });
+    optWrap.appendChild(div);
+  });
+
+  document.getElementById('progressText').textContent = `Question ${current+1} of ${QUESTIONS.length}`;
+  const pct = Math.round(((current+1)/QUESTIONS.length)*100);
+  document.getElementById('progressPct').textContent = pct + '%';
+  document.getElementById('progressFill').style.width = pct + '%';
+
+  document.getElementById('btnPrev').disabled = current === 0;
+  document.getElementById('btnNext').textContent = (current === QUESTIONS.length-1) ? 'Submit test' : 'Next →';
+}
+
+document.getElementById('btnPrev').addEventListener('click', () => {
+  if(current > 0){ current--; renderQuestion(); }
+});
+
+document.getElementById('btnNext').addEventListener('click', () => {
+  if(current === QUESTIONS.length - 1){
+    submitTest(false);
+  } else {
+    current++; renderQuestion();
+  }
+});
+
+/* ================================================================
+   SUBMIT + STORAGE
+================================================================= */
+async function submitTest(auto){
+  clearInterval(timerInterval);
+  document.getElementById('timerPill').classList.remove('show');
+
+  let score = 0;
+  QUESTIONS.forEach((q, i) => { if(answers[i] === q.correct) score++; });
+
+  const timeTakenSec = Math.round((Date.now() - startedAt)/1000);
+  const record = {
+    ...candidate,
+    score,
+    total: QUESTIONS.length,
+    timeTakenSec,
+    autoSubmitted: auto,
+    submittedAt: new Date().toISOString(),
+  };
+
+  try{
+    const { error } = await supabaseClient.from('submissions').insert([{
+      name: record.name,
+      reg_no: record.reg,
+      department: record.dept,
+      year: record.year,
+      score: record.score,
+      total: record.total,
+      time_taken_sec: record.timeTakenSec,
+      auto_submitted: record.autoSubmitted
+    }]);
+    if(error) console.error('Could not save submission', error);
+  }catch(e){
+    console.error('Could not save submission', e);
+  }
+
+  document.getElementById('resultScoreBig').textContent = `${score}/${QUESTIONS.length}`;
+  document.getElementById('resultMeta').innerHTML = `
+    <div><span>Name</span><span>${candidate.name}</span></div>
+    <div><span>Register no.</span><span>${candidate.reg}</span></div>
+    <div><span>Department</span><span>${candidate.dept}</span></div>
+    <div><span>Time taken</span><span>${Math.floor(timeTakenSec/60)}m ${timeTakenSec%60}s</span></div>
+  `;
+  showScreen('screen-result');
+}
+
+document.getElementById('btnRestart').addEventListener('click', () => {
+  Object.values(fields).forEach(f => { f.input.value=''; f.el.classList.remove('invalid'); });
+  candidate = null;
+  showScreen('screen-register');
+});
+
+/* ================================================================
+   BACKGROUND NETWORK ANIMATION
+================================================================= */
+(function(){
+  const canvas = document.getElementById('netcanvas');
+  const ctx = canvas.getContext('2d');
+  let w, h, nodes = [];
+  const NODE_COUNT = 46;
+  const LINK_DIST = 150;
+
+  function resize(){
+    w = canvas.width = window.innerWidth;
+    h = canvas.height = window.innerHeight;
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  function initNodes(){
+    nodes = Array.from({length: NODE_COUNT}, () => ({
+      x: Math.random()*w, y: Math.random()*h,
+      vx: (Math.random()-0.5)*0.25, vy: (Math.random()-0.5)*0.25,
+      r: Math.random()*1.6 + 1.2
+    }));
+  }
+  initNodes();
+
+  function step(){
+    ctx.clearRect(0,0,w,h);
+    nodes.forEach(n => {
+      n.x += n.vx; n.y += n.vy;
+      if(n.x < 0 || n.x > w) n.vx *= -1;
+      if(n.y < 0 || n.y > h) n.vy *= -1;
+    });
+    for(let i=0;i<nodes.length;i++){
+      for(let j=i+1;j<nodes.length;j++){
+        const a = nodes[i], b = nodes[j];
+        const dx = a.x-b.x, dy = a.y-b.y;
+        const dist = Math.sqrt(dx*dx+dy*dy);
+        if(dist < LINK_DIST){
+          ctx.strokeStyle = `rgba(53,208,186,${(1 - dist/LINK_DIST)*0.15})`;
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke();
+        }
+      }
+    }
+    nodes.forEach(n => {
+      ctx.beginPath();
+      ctx.arc(n.x, n.y, n.r, 0, Math.PI*2);
+      ctx.fillStyle = 'rgba(53,208,186,0.55)';
+      ctx.fill();
+    });
+    requestAnimationFrame(step);
+  }
+  step();
+})();
+</script>
+</body>
+</html>
