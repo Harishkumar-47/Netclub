@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Networking Club — Admin Panel</title>
+<link rel="icon" type="image/png" href="logo.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -110,9 +111,12 @@
 <!-- ============ DASHBOARD ============ -->
 <div id="dash">
   <div class="topbar">
-    <div class="brand">
-      <h1>Networking Club — Results</h1>
-      <div class="sub">All candidate submissions, live from Supabase</div>
+    <div class="brand" style="display:flex; align-items:center; gap:12px;">
+      <img src="logo.png" alt="Club logo" style="width:38px; height:38px; object-fit:contain; flex-shrink:0;">
+      <div>
+        <h1>Networking Club — Results</h1>
+        <div class="sub">All candidate submissions, live from Supabase</div>
+      </div>
     </div>
     <div class="top-actions">
       <button class="btn btn-ghost" id="btnRefresh">Refresh</button>
